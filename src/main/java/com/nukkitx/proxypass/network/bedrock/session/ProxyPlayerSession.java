@@ -19,7 +19,10 @@ import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 
 import java.security.KeyPair;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
 
 @Log4j2
 @Getter
@@ -80,31 +83,48 @@ public class ProxyPlayerSession {
             List<BedrockPacket> unhandled = new ArrayList<>();
 
             for (BedrockPacket packet : packets) {
-                logger.logPacket(session, packet, upstream);
-
-                BedrockPacketHandler handler = session.getPacketHandler();
-
-                if (handler != null && packet.handle(handler)) {
-                    batchHandled = true;
-                } else {
-                    unhandled.add(packet);
+                // Additions
+                final List<BedrockPacket> additionalPackets = new ArrayList<>();
+                if(proxy.onLogPacket != null) {
+                    final List<BedrockPacket> output = proxy.onLogPacket.apply(session, packet);
+                    if(output != null) {
+                        additionalPackets.addAll(output);
+                        batchHandled = true;
+                    }else {
+                        additionalPackets.add(packet);
+                    }
+                }else {
+                    additionalPackets.add(packet);
                 }
+                // Additions
 
-                if (packetTesting && !(packet instanceof UnknownPacket)) {
-                    int packetId = ProxyPass.CODEC.getId(packet.getClass());
-                    ByteBuf buffer = ByteBufAllocator.DEFAULT.ioBuffer();
-                    try {
-                        ProxyPass.CODEC.tryEncode(buffer, packet, session);
-                        BedrockPacket packet2 = ProxyPass.CODEC.tryDecode(buffer, packetId, session);
-                        if (!Objects.equals(packet, packet2)) {
-                            // Something went wrong in serialization.
-                            log.warn("Packets instances not equal:\n Original  : {}\nRe-encoded : {}",
-                                    packet, packet2);
+                for (BedrockPacket packet2 : additionalPackets) {
+                    logger.logPacket(session, packet2, upstream);
+
+                    BedrockPacketHandler handler = session.getPacketHandler();
+
+                    if (handler != null && packet2.handle(handler)) {
+                        batchHandled = true;
+                    } else {
+                        unhandled.add(packet2);
+                    }
+
+                    if (packetTesting && !(packet2 instanceof UnknownPacket)) {
+                        int packetId = ProxyPass.CODEC.getId(packet2.getClass());
+                        ByteBuf buffer = ByteBufAllocator.DEFAULT.ioBuffer();
+                        try {
+                            ProxyPass.CODEC.tryEncode(buffer, packet2, session);
+                            BedrockPacket packet3 = ProxyPass.CODEC.tryDecode(buffer, packetId, session);
+                            if (!Objects.equals(packet2, packet3)) {
+                                // Something went wrong in serialization.
+                                log.warn("Packets instances not equal:\n Original  : {}\nRe-encoded : {}",
+                                        packet2, packet3);
+                            }
+                        } catch (PacketSerializeException e) {
+                            //ignore
+                        } finally {
+                            buffer.release();
                         }
-                    } catch (PacketSerializeException e) {
-                        //ignore
-                    } finally {
-                        buffer.release();
                     }
                 }
             }

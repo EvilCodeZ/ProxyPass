@@ -3,6 +3,7 @@ package com.nukkitx.proxypass;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.nukkitx.proxypass.network.bedrock.util.LogTo;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 
 import java.io.BufferedReader;
@@ -16,7 +17,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.Collections;
 import java.util.Set;
 
-@Getter
+@Getter @Setter
 @ToString
 public class Configuration {
 
@@ -51,7 +52,7 @@ public class Configuration {
         }
     }
 
-    @Getter
+    @Getter @Setter
     @ToString
     public static class Address {
         private String host;

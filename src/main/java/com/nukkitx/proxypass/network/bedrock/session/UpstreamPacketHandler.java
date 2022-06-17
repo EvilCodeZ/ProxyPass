@@ -137,7 +137,7 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
             downstream.setPacketCodec(ProxyPass.CODEC);
             ProxyPlayerSession proxySession = new ProxyPlayerSession(this.session, downstream, this.proxy, this.authData);
             this.player = proxySession;
-            downstream.getHardcodedBlockingId().set(355);
+            downstream.getHardcodedBlockingId().set(ProxyPass.SHIELD_RUNTIME_ID);
             try {
                 JWSObject jwt = JWSObject.parse(chainData.get(chainData.size() - 1).asText());
                 JsonNode payload = ProxyPass.JSON_MAPPER.readTree(jwt.getPayload().toBytes());
@@ -173,6 +173,10 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
             this.session.getHardcodedBlockingId().set(ProxyPass.SHIELD_RUNTIME_ID);
 
             log.debug("Downstream connected");
+
+            if(this.proxy.onNewClient != null) {
+                this.proxy.onNewClient.accept(this.session, downstream);
+            }
 
             //SkinUtils.saveSkin(proxySession, this.skinData);
         });

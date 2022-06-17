@@ -10,9 +10,7 @@ import com.nukkitx.nbt.NBTInputStream;
 import com.nukkitx.nbt.NBTOutputStream;
 import com.nukkitx.nbt.NbtMap;
 import com.nukkitx.nbt.NbtUtils;
-import com.nukkitx.protocol.bedrock.BedrockClient;
-import com.nukkitx.protocol.bedrock.BedrockPacketCodec;
-import com.nukkitx.protocol.bedrock.BedrockServer;
+import com.nukkitx.protocol.bedrock.*;
 import com.nukkitx.protocol.bedrock.v527.Bedrock_v527;
 import com.nukkitx.proxypass.network.ProxyBedrockEventHandler;
 import io.netty.util.ResourceLeakDetector;
@@ -30,6 +28,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 
 @Log4j2
 @Getter
@@ -71,25 +71,31 @@ public class ProxyPass {
     private Path sessionsDir;
     private Path dataDir;
 
-    public static void main(String[] args) {
+    // Additions
+    public BiConsumer<BedrockServerSession, BedrockClientSession> onNewClient;
+    public BiFunction<BedrockSession, BedrockPacket, List<BedrockPacket>> onLogPacket;
+
+    public static ProxyPass launch(Configuration config) {
         ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.DISABLED);
         ProxyPass proxy = new ProxyPass();
-        try {
-            proxy.boot();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        proxy.configuration = config;
+        return proxy;
     }
 
-    public void boot() throws IOException {
-        log.info("Loading configuration...");
+    public static Configuration loadConfig() throws IOException {
         Path configPath = Paths.get(".").resolve("config.yml");
         if (Files.notExists(configPath) || !Files.isRegularFile(configPath)) {
             Files.copy(ProxyPass.class.getClassLoader().getResourceAsStream("config.yml"), configPath, StandardCopyOption.REPLACE_EXISTING);
         }
+        return Configuration.load(configPath);
+    }
 
-        configuration = Configuration.load(configPath);
+    public static void saveConfig(Configuration config) throws IOException {
+        Path configPath = Paths.get(".").resolve("config.yml");
+        YAML_MAPPER.writerWithDefaultPrettyPrinter().writeValue(Files.newOutputStream(configPath), config);
+    }
 
+    public void boot() throws IOException {
         proxyAddress = configuration.getProxy().getAddress();
         targetAddress = configuration.getDestination().getAddress();
         maxClients = configuration.getMaxClients();
